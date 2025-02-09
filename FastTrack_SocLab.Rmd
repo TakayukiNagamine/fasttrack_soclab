@@ -10,6 +10,9 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+theme_set(theme_classic())
 ```
 
 # Introduction
@@ -32,25 +35,25 @@ https://doi.org/10.1515/lingvan-2020-0051](https://www.degruyter.com/document/do
 
 In the workshop, I will demonstrate my typical workflow of acoustic (spectral) analysis using FastTrack. I usually follow these steps:
 
-1. Record audio data (well, quite obvious)
+1. **Record audio data** (well, quite obvious)
 
-2. Annotate audio files onto Praat Textgrids
+2. **Annotate audio files onto Praat Textgrid**
   - I usually start this using forced alignment (e.g., Montreal Forced Aligner: MFA) and then refine segment boundaries manually. 
   - I use MFA because it can annotate segments using ARPABET that FastTrack can recognise. 
   - Helpful to create two tiers at least: word (orthography) and phone (ARPABET). You can manually annotate words first, and then MFA will create the phone tier for you. 
 
-3. Define segments of interest
+3. **Define segments of interest**
   - FastTrack starts to kick in here. By default, FastTrack looks for vowels as FastTrack is designed primarily for analysing vowels (or, to be more specific, vowel inherent spectral change: VICS). But the minimum requirement in using FastTrack is that formant structure is visible throughout each audio file to be analysed, and you can tweak the settings into analysing sonorant consonants (e.g., liquids, semi-vowels).
 
-4. Extract vowels (or vocalic portions of interest)
+4. **Extract vowels (or vocalic portions of interest)**
   - FastTrack estimates formants throughout each audio file. This means that it achieves the highest formant estimation accuracy when spectral structure is seen throughout each file. 
   - FastTrack has **Extract vowels** function that enables you to extract the vocalic portions of your interest before analysis. 
 
-5. Estimate formants using **Track Folder**
+5. **Estimate formants using Track Folder**
   - Once individual segments have been extracted, you can bulk-estimate formant frequencies for all audio files stored in the same directory. 
   - Some parameters need to be specified, such as the maximum and minumum frequency of anlaysis windows, the number of formants to be extracted (3 or 4), the number of data points (i.e., `bins') to be output etc. 
 
-6. Visualise and run stats using R
+6. **Visualise and run stats using R**
   - This is the fun bit!
 
 ## Workshop objectives
@@ -63,15 +66,9 @@ library(tidyverse)
 library(emuR)
 ```
 
-# Research problem
-
-Takayuki is generally interested in the mechanisms behind foreign accents in L2 speech production. One of the understudied aspects is the role of speech dynamics (i.e., the interaction between spatial and temporal characteristics of speech). Previous literature, for example, argues that L1 Japanese speakers can learn to use F2 dimension in a native-like manner in their production of L2 English liquids /l/ and /r/ based on single-point spectral measurement (e.g., at temporal midpoint of a segment). I have demonstrated, however, that this is rather a little misleading; formant dynamics show that L1 Japanese speakers' use of F2 is quite different from that of L1 English speakers in the production of English liquids. 
-
-Extending this, I would now like to extend this line of research into vowels. So, in this workshop, let's take a look together at dynamics involved in the production of vowels and compare vowel production between L1 Japanese and L1 English speakers. 
-
 ## data
 
-We are going to analyse vowel production from ``the North Wind and the Sun'' passage. We will use the data from [the ALLSTAR
+We are going to analyse vowel production from ``the North Wind and the Sun'' passage produced by speakers of different L1 backgrounds. We will use the data from [the ALLSTAR
 Corpus](https://groups.linguistics.northwestern.edu/speech_comm_group/allsstar2/#!/). The ALLSTAR Corpus contains a number of spontaneous and scripted speech that were produced by English speakers from different language
 backgrounds:
 
@@ -79,36 +76,43 @@ Bradlow, A. R. (n.d.) ALLSSTAR: Archive of L1 and L2 Scripted and
 Spontaneous Transcripts And Recordings. Retrieved from
 <https://oscaar3.ling.northwestern.edu/ALLSSTARcentral/#!/recordings>.
 
-You can download a subset of the corpus data (containing only L1 Japanese and L1 English speaker data) from below:
+You can download a subset of the corpus data to work with in this workshop from [here](https://github.com/TakayukiNagamine/fasttrack_soclab/blob/main/data.zip). 
 
-- [**NWS.zip**](https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/zip/NWS.zip): 
-    - This is basically a folder that contains WAV and TextGrid files, but are stored in separate folders in a FastTrack-friendly manner. 
-    
-- [**NWS_individual_vowels.zip**](https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/zip/NWS_individual_vowels.zip): 
-    - The folder contains the product of the vowel extraction. Therefore, each sound file corresponds to a vowel and is stored in the `sounds' folder. There are also two csv files that are helpful for tidying up the data afterwards.
+The data contains recordings of the North Wind and the Sun passage by 22 speakers from various L1 backgrounds: Chinese-Cantonese (n = 4), Chinese-Mandarin (n = 4), English (n = 4), Japanese (n = 2), Korean (n = 4), and Spanish (n = 4). In each language group, half the speakers are female and the other half male. The file name convention is: ```ALL_[speaker number]_[gender: F or M]_[L1: CCT, CMN, ENG, JPN, KOR, SPA]_[L2: ENG]_NWS```. Each audio file is accompanied by an annotated TextGrid file.
+
 
 # Let's begin the analysis!
 
-## Extracting vowels
+## Step 1: Extracting vowels
 
 We have recorded speech data from participants and/or obtained corpus data already. After some agony, we have managed to segment everything and are now ready to proceed onto acoustic analysis. 
 
 When using FastTrack, the first thing we need to do is **to extract vocalic portions** that we would like to analyse. Let's extract vowels using FastTrack before submitting them to formant estimation. 
 
+FastTrack extracts segments specified in the spreadsheet ```vowelstoextract_default.csv```. By default, the csv file lists vowels, but you can modify the list if interested in extracted other types of sounds (e.g., liquids, semi-vowels). You can find this by going to: **FastTrack-master** -> **Fast Track** -> **dat**. 
+
+  - When changing something here, I would strongly suggest that you keep the default file, too. FastTrack only recognises the spreadsheet when it's named as ```vowelstoextract_default.csv```, which means that you can just give a different name to the spreadsheets that you'd like to keep. For example, when I analysed liquids, I first copied the default file and renamed it into ```vowelstoextract_vowel.csv```. I then modify the default file so that the list only contains /l/ and /r/. 
+
+### Procedure
+
 Here is a somewhat detailed workflow:
 
-1. Download [**NWS.zip**](https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/zip/NWS.zip) and save it somewhere on your computer. I have already made the structure optimal for the vowel extraction. 
+1. Download [**data.zip**](https://github.com/TakayukiNagamine/fasttrack_soclab/blob/main/data.zip) and save it somewhere on your computer. 
 
-2. Open **Praat** and throw a random file in the object window. This will trigger the FastTrack functions to appear in the menu section.
+2. FastTrack requires a certain repository structure, so let's do this now. Specifically, we'll need to save the audio and textgrid files in separate folder, named ```sounds``` and ```textgrids``` separately. Create new folders, give the appropriate names, and save the files in each folder. 
 
-3. Select **Tools...**, then **Extract vowels with TextGrids**.
+  - It might also be useful to create an ```output``` folder at this stage, too. This is where the extracted files, which we will use for formant estimation later on, will be spitted out.
 
-4. Specify the following:
+3. Open **Praat** and throw a random file in the object window. This will trigger the FastTrack functions to appear in the menu section.
+
+4. Select **Tools...**, then **Extract vowels with TextGrids**.
+
+5. Once a window pops up, specify the following:
 
 - **Sound folder**: 
-  - Path to "sounds" in the NWS folder containing .wav files.
+  - Path to ``sounds'' in the data folder containing .wav files.
 - **TextGrid folder**: 
-  - Path to "textgrids" in the NWS folder containing .TextGrid files.
+  - Path to ``textgrids'' in the data folder containing .TextGrid files.
 - **Output folder**: 
   - Path to the folder where you wish to save the outputs. You could specify an existing location. 
 - **Which tier contains segmentation information?**: 
@@ -116,27 +120,28 @@ Here is a somewhat detailed workflow:
 - **Which tier contains word information?**: 
   - Specify the tier with words. Type 1 in this case.
 - **Is stress marked on vowels?**: 
-  - Tick the box if you wish to take stress into account. If you use forced alignment to segment the speech, stress is marked alongside each vowel. For example, you will find "AE1", which means a TRAP vowel that bears the primary stress, or "AE2" the secondary stress, etc.
+  - Tick the box if you wish to take stress into account. If you use MFA to segment the speech, stress is marked alongside each vowel. For example, you will find "AE1", which means a TRAP vowel that bears the primary stress, or "AE2" the secondary stress, etc.
 
 ```{r echo=FALSE, fig.align='center', out.width="50%", fig.cap="Vowel extraction setting window"}
 
-knitr::include_graphics("/Users/TakayukiNagamine/Documents/GitHub/FastTrack-Workshop/images/vowel_extraction.png")
+knitr::include_graphics("/Users/TakayukiNagamine/Documents/github/fasttrack_soclab/images/vowel_extraction.png")
 ```
 
+6. **Press OK** and excute!
 
-<!--
+### Output files
 
-<p align="center">
-<img src="https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/c3015ff5f06a6ba7d353981eadcece64e3f85706/images/vowel_extraction.png" width = 80%>
-</p>
+Let's check what files have been created at this stage. Go to the ```output``` folder to check what it contains:
 
--->
+- **segmentation_information.csv**: A detailed summary of the extraction process, including input and output (audio) files, labels, duration, previous and next adjacent segments and stress information.
 
-# Bulk formant estimation
+- **file_information.csv**: A brief summary of the correspondence between output files, labels and colours. Colours are relevant when visualising vowels using Praat.
 
-Let's imagine that you are interested in comparing vowel realisations between a native English speaker and a native Japanese learner of English. 
+- **sounds**: Extracted audio files. You'll notice that the file names now have some numbers added to the end (e.g., ALL_005_M_CMN_ENG_NWS_**0002**.wav), indicating the order of extraction from the original audio file.
 
-The highlight of using FastTrack is that it enables you to extract formant frequencies from multiple files automatically. So, skipping all the preparation, here are what you can expect from FastTrack:
+## Step 2: Tracking a folder
+
+Having extracted vowels (or any vocalic segments), we're now ready to move onto the fun bit: formant tracking! Here is what FastTrack does:
 
 - FastTrack does a lot of regressions and chooses the best analysis out of multiple candidates automatically. It can also return images of all candidates and the winners for visual inspection. 
 
@@ -144,74 +149,196 @@ The highlight of using FastTrack is that it enables you to extract formant frequ
 
 - The output is a csv file summarising the analysis, which can then be imported into R for tidy up, visualisation, statistics, etc. 
 
-You can extract formant contours easily through the following steps:
 
-1. Download [**NWS_individual_vowels.zip**](https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/zip/NWS_individual_vowels.zip), unfold it and save it somewhere on your computer.
+### Procedure
+
+Formant estimation is based on the ```output``` folder from the extraction stage. **Do not delete or move anything from the folder!** 
+
+1. Make sure that you know where the ```output``` folder is. This should contain at least: (1) file_information.csv, (2) segment_information.csv, and (3) a sounds folder containing a bunch of segmented audio files. 
 
 2. Open **Praat** and throw a random file in the object window. This will trigger the FastTrack functions to appear in the menu section (if FastTrack is installed properly).
 
 3. Select **Track folder...**.
 
-4. Specify the path to the **NWS_individual_vowels** folder in the "Folder" section. You can also adjust some other functions if prefer. For more details, please consult Sandiego's Github page.
+4. Specify the path to the **output** folder in the ``Folder'' section. (Hint: this is not the path to the **sounds** folder!) 
 
-- Note that the path to be specified here is **the folder that contains a 'sound' folder and two other csv files**. This won't work if you specify the 'sound' folder directly. 
-    
-- Also note that **the naming convention is also important** in later stages - i.e. a 'sounds' folder and a 'texrgrids' folder.
+5. Adjust parameters for your needs. This includes:
 
+- **Lowest/highest analysis frequency**: The range of upper limit of the frequency window that FastTrack seeks formants. FastTrack alters the ceiling of the analysis window in a number of steps to identify the most optimal formant estimation. 
+
+
+  - **Note:** It is recommended that we do formant tracking for female and male speakers separately due to anatomical differences such as vocal tract length (details [here](https://github.com/santiagobarreda/FastTrack/wiki/getting-a-good-analysis)). Given this, we will conduct analysis for female speakers with the 5000-7000 Hz range and for male speakers 4500-6500 Hz range.
+
+- **Number of steps**: Basically the number of iteration of the upper limit adjustment. 24 here means that FastTrack adjusts the upper frequency limit in 24 steps from the lowest to highest analysis frequency that you have specified in the previous step. 
+
+- **Number of formants**: Obviously how many formants you'd like to extract. This has an impact of the formant estimation accuracy, so explore a little if you don't get a satisfactory analysis. 
+
+- **Make images comparing analysis/showing winners**: You can choose whether you'd like to have an .png file for each analysis and each winner. I'd always tick the boxes here, but this depends on how much storage you have.
+
+- Also, do not forget to tick **Show Progress**: otherwise it'd look like the computer is frozen and it wouldn't let you know how much time it takes to process everything. 
+
+6. Hit **OK** and run! 
 
 ```{r echo=FALSE, out.width="49%", out.height="20%", fig.show='hold', fig.align='center', fig.cap='Setting window for formant estimation (left) and an example of comparison image (right)'}
 
 
-knitr::include_graphics("/Users/TakayukiNagamine/Documents/GitHub/FastTrack-Workshop/images/trackfolder01.png")
+knitr::include_graphics("/Users/TakayukiNagamine/Documents/github/fasttrack_soclab/images/trackfolder01.png")
 
-knitr::include_graphics("/Users/TakayukiNagamine/Documents/GitHub/FastTrack-Workshop/images/071_F_ENG_0025_comparison.png")
+knitr::include_graphics("/Users/TakayukiNagamine/Documents/github/fasttrack_soclab/images/071_F_ENG_0025_comparison.png")
 
   
 ```
+### Output files
 
-<!--
-<p align="center">
-<img src="https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/baefed6e4a16e2d3b4d24cc280743bee8c3f4dfe/images/trackfolder01.png" width = 80%>
-</p>
+You'll get quite a few output files from this stage. Let's take a look at some of them that are most relevant here:
 
-<p align="center">
-<img src="https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/6a5ab4e82ad7ef17021eb3fa7fbfae4262c8bc7d/images/071_F_ENG_0025_comparison.png" width = 80%>
-</p>
--->
+- **aggregated_data.csv**: A spreadsheet summarising (1) input file, (2) duration, (3) formant measurement averaged into the pre-specified number of bins (e.g., 11) for each vowel analysed here. This can be found in the **processed_data** folder. (See the image below for a quick overview.)
 
-This operation yields quite a few output files, for which we don't have enough time to look through. If interested, you can download [**"NWS_results.zip"**](https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/zip/NWS_result.zip) to see the full output. The most important here is the results of the formant estimation, stored in a csv file as [**aggregate_data.csv**](https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/cea3b7c72cd9794705aec754d362449e2f93ab66/csv/aggregated_data.csv) in **processed_data** folder. Here is a glimpse of it: 
+- **winners.csv**: A spreadsheet summarising which analysis step yields the most accurate formant tracking based on regression. Useful when you are not satisfied with the winner auto-selected by FastTrack and identify another analysis to be better. 
+
+- **images_comparison** folder: A folder showing the results of the step-wise formant estimation. Useful when evaluating formant tracking quality relative to each of the analysis steps.
+
+- **images_winner**: A folder containing images for each `winning' analysis for each sound file. 
+
+- **csvs**: A folder containing initial formant tracking sampled at 2ms interval (before FastTrack bins them into a smaller number of data points) for each winning analysis. Useful for a finer-grained analysis. 
 
 ```{r echo=FALSE, fig.align='center', fig.cap="An example of Aggregate_data.csv"}
 
-knitr::include_graphics("/Users/TakayukiNagamine/Documents/GitHub/FastTrack-Workshop/images/aggregate_data.png")
+knitr::include_graphics("/Users/TakayukiNagamine/Documents/github/fasttrack_soclab/images/aggregate_data.png")
 
 ```
 
-<!--
-<p align="center">
-<img src="https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/51f898dc45415f4d5f22719334d37dc2e7d62cb1/images/aggregate_data.png" width = 100%>
-</p>
--->
+# Data processing and analysis using R
 
-# Tidying up data for R
+Acoustic analysis is done, hooray! Now let's move onto the more fun part -- data wrangling, visualiastion and analysis using R. I can think of two broad paths to data analysis, and I'll explain them one by one below. 
 
-I think FastTrack becomes even more powerful if combined with R. This, however, requires you to figure out how to tidy up the data for a more R-friendly data frame. If interested, you can look at my R code ([**FastTrack.R**](https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/main/FastTrack.R)) to tidy up the data, which I wrote based on Sam's script.
+## Based on ```aggregated_data.csv```
 
-Below is my attempt to visualise vowels of nonnative English speakers from the Asian countries (Hong Kong, Thailand and Vietnam) as well as an American English speaker. 
+### Data processing
 
-```{r message=FALSE, echo=FALSE, fig.align='center', fig.cap="Comparison of vowel space in Asian Englishes speakers and an American English speaker"}
+An easier way of data analysis is to use ```aggregated_data.csv```. Here, let's convert the file format in a more tidyverse-friendly manner and then try some plotting. 
 
-df.long <- read_csv("/Volumes/Samsung_T5/Asian_Engliehse_Listening/FastTrack/tidydata.csv")
+Data transformation here is based on the codes originally written by Dr Sam Kirkham (Lancaster University). We will first import relevant data sets: aggregated_data.csv and segmentation_info.csv.
 
-df.midpoint.mono <- df.long %>% 
-  filter(stress %in% c(1, 2), # each instance occurs in a stressed position
-         !next_sound %in% c("R", "W", "Y"), # monophthongs followed by /r/, /w/, and /j/ were avoided
-         !previous_sound %in% c("R", "W", "Y"), # monophthongs preceded by /r/, /w/, and /j/ were avoided
-         !next_sound %in% c("L", "NG"), # monophthongs followed by /l/ and /ng/ were avoided
-         percent == 50, # specifying vowel midpoint
-         !(vowel %in% c("AW", "AY", "EY", "OW", "OY")) # monophthongs
-  ) %>% 
-  mutate(
+We have separate data sets for female and male speakers, so we'll import them separately and merge them at a later stage. 
+
+**Female data**:
+
+```{r message=FALSE, warning=FALSE}
+# load packages
+library(tidyverse)
+
+# import data sets: female data
+## aggregated_data.csv
+df_aggr_f <- readr::read_csv("/Volumes/Samsung_T5/data/female/output/processed_data/aggregated_data.csv")
+## "Aggregated_data" contains information about formant frequency values and duration, f0 etc. but lacks in other information.
+
+## segmentation info
+df_segment_info_f <- readr::read_csv("/Volumes/Samsung_T5/data/female/output/segmentation_information.csv")
+## "segmentation information" supplement the "aggregated_data.csv" with information about the context of the extracted sounds, vowel duration, stress, comments, etc.
+
+df_segment_info_f <- df_segment_info_f |> 
+  dplyr::rename(file = outputfile)
+## Rename the "outputfile" column to "file" so that it is compatible with the "aggregated_data.csv".
+
+df_f <- merge(df_aggr_f, df_segment_info_f, by = "file", all = T)
+## Merging the two csv files by the "file" column
+
+df_f <- na.omit(df_f) # omitting NA
+```
+
+**Male data**:
+
+```{r message=FALSE, warning=FALSE}
+# import data sets: female data
+## aggregated_data.csv
+df_aggr_m <- readr::read_csv("/Volumes/Samsung_T5/data/male/output/processed_data/aggregated_data.csv")
+## "Aggregated_data" contains information about formant frequency values and duration, f0 etc. but lacks in other information.
+
+## segmentation info
+df_segment_info_m <- readr::read_csv("/Volumes/Samsung_T5/data/male/output/segmentation_information.csv")
+## "segmentation information" supplement the "aggregated_data.csv" with information about the context of the extracted sounds, vowel duration, stress, comments, etc.
+
+df_segment_info_m <- df_segment_info_m |> 
+  dplyr::rename(file = outputfile)
+## Rename the "outputfile" column to "file" so that it is compatible with the "aggregated_data.csv".
+
+df_m <- merge(df_aggr_m, df_segment_info_m, by = "file", all = T)
+## Merging the two csv files by the "file" column
+
+df_m <- na.omit(df_m) # omitting NA
+```
+
+Let's then merge the female and male data and make the data frame into a long data.
+
+```{r}
+# combine female and male data
+df <- rbind(df_f, df_m)
+
+df_long <- df %>%
+  tidyr::pivot_longer(contains(c("f1", "f2", "f3")), # add "f4" if you extract F4 as well 
+               names_to = c("formant", "timepoint"), 
+               names_pattern = "(f\\d)(\\d+)",
+               values_to = "hz")
+```
+
+Then, we will add proportional time information here -- we have extracted the formant frequencies that are summarised into 11 bins, meaning that we can express the temporal information from 0% to 100% with a 10% increment. 
+
+If you recall, the audio file names contain information about the speaker background. Let's add them into the data frame, too. 
+
+```{r}
+df_long <- df_long |> 
+  tidyr::spread(key = formant, value = hz) |> 
+  dplyr::select(-duration.y) |> # drop one of the two duration columns
+  dplyr::rename(
+    duration = duration.x) |> # rename the duration column
+  dplyr::mutate(
+    timepoint = as.numeric(timepoint),  
+    percent = (timepoint - 1) * 10, # adding proportional time
+    speaker =
+      str_sub(file, start = 5, end = 7), # speaker ID: three digits
+    speaker = as.factor(speaker),
+    gender = 
+      str_sub(file, start = 9, end = 9), # gender: F or M
+    L1 =
+      str_sub(file, start = 11, end = 13), # L1: CMN, CCT ...
+  )
+
+# within-speaker normalisation
+df_long <- df_long |> 
+  dplyr::group_by(speaker) |> 
+  dplyr::mutate(
+    f1z = scale(f1),
+    f2z = scale(f2),
+    f3z = scale(f3)
+  ) |> 
+  dplyr::ungroup()
+
+# check data
+df_long |> 
+  dplyr::group_by(gender, L1) |> 
+  dplyr::summarise() |> 
+  dplyr::ungroup()
+```
+
+The data looks good! On we go to visualisation!
+
+### Data visualisation
+
+Let's try some data visualisation. Having temporal information in a proportional manner is useful because you can extract formant frequencies at an arbitrary point in time during each vowel interval. 
+
+Let's first try visualising monophthongs based on midpoint measurement. We'll omit tokens that are surrounded by liquids and semi-vowels 
+
+```{r}
+df_long_mono <- df_long |> 
+  dplyr::filter(
+    !next_sound %in% c("R", "W", "Y"), # monophthongs followed by /r/, /w/, and /j/ were avoided
+    !previous_sound %in% c("R", "W", "Y"), # monophthongs preceded by /r/, /w/, and /j/ were avoided
+    !next_sound %in% c("L", "NG"), # monophthongs followed by /l/ and /ng/ were avoided
+    percent == 50, # specifying vowel midpoint
+    !(vowel %in% c("AW", "AY", "EY", "OW", "OY")) # monophthongs
+  ) |> 
+  dplyr::mutate(
     vowel_ipa =
       case_when(
         str_detect(vowel, "AA") ~ "ɑ",
@@ -225,52 +352,314 @@ df.midpoint.mono <- df.long %>%
         str_detect(vowel, "UH") ~ "ʊ",
         str_detect(vowel, "UW") ~ "u",
         )
-    )
- 
+    ) # add IPA symbols for visualisation
+```
 
+We need mean formant values where we'll put the IPA labels. 
+
+```{r fig.width=10, fig.height=6}
 # Calculate vowel means
-df.means <- df.midpoint.mono %>% 
-  group_by(speaker, vowel, vowel_ipa) %>% 
-  filter(speaker %in% c("AME_F", "HKG_F", "THA_F", "VIE_F")) %>% 
-  summarise(
-    F1 = mean(Barkf1),
-    F2 = mean(Barkf2)
-  )
+df_mean <- df_long_mono |> 
+  dplyr::group_by(gender, vowel, vowel_ipa) |> 
+  dplyr::summarise(
+    m_f1 = mean(f1z),
+    m_f2 = mean(f2z)
+  ) |> 
+  dplyr::ungroup()
 
-df.midpoint.mono %>% 
-  filter(speaker %in% c("AME_F", "HKG_F", "THA_F", "VIE_F")) %>% 
-  ggplot(aes(x = Barkf2, y = Barkf1, colour = vowel), show.legend = FALSE) +
+# plot
+df_long_mono |> 
+  dplyr::mutate(
+    L1 = case_when(
+      L1 == "CCT" ~ "Cantonese",
+      L1 == "CMN" ~ "Mandarin",
+      L1 == "ENG" ~ "English",
+      L1 == "KOR" ~ "Korean",
+      L1 == "JPN" ~ "Japanese",
+      L1 == "SPA" ~ "Spanish",
+    ) # making L1 labels to be more readable
+  ) |> 
+  ggplot(aes(x = f2z, y = f1z, colour = vowel_ipa)) +
   geom_point(size = 1, alpha = 0.5, show.legend = FALSE) +
-#  stat_ellipse(geom = "polygon", alpha = 0.25, aes(fill = vowel_ipa), show.legend = FALSE) +
+  geom_label(data = df_mean, aes(x = m_f2, y = m_f1, label = vowel_ipa, colour = vowel), show.legend = FALSE) +
   scale_x_reverse(position = "top") +
   scale_y_reverse(position = "right") +
-  facet_wrap( ~ speaker) +
-  geom_label(data = df.means, aes(x = F2, y= F1, label = vowel, colour = vowel), show.legend = FALSE)
+  labs(x = "normalised F2\n", y = "normalised F1\n", title = "vowel midpoint") +
+  facet_grid(gender ~ L1) +
+  theme(axis.text = element_text(size = 8),
+        axis.title = element_text(size = 15),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15, angle = 0),
+        plot.title = element_text(size = 20, hjust = 0, face = "bold")
+  ) 
+```
 
+We can also plot temporal changes in formant frequency. For example, here is a comparison of F2 dynamics between L1 English and L1 Japanese speakers. Please feel free to explore any other L1 comparisons! 
+
+```{r fig.width=10, fig.height=10}
+df_long |> 
+  dplyr::filter(
+    L1 %in% c("ENG", "JPN") # change for different L1 pairs
+  ) |> 
+  ggplot(aes(x = percent, y = f2z, colour = L1)) +
+  geom_point(alpha = 0.05) +
+  geom_path(aes(group = number), alpha = 0.05) +
+  geom_smooth(aes(group = L1)) + # you could also add smooths
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+  labs(x = "proportional time", y = "normalised F2\n", title = "F2 dynamics") +
+  facet_wrap( ~ vowel) +
+  scale_colour_manual(values = alpha(c("brown4", "blue4"))) +
+  theme(axis.text = element_text(size = 10),
+        axis.title = element_text(size = 15),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15, angle = 0),
+        plot.title = element_text(size = 20, hjust = 0, face = "bold")
+  ) 
+```
+
+### Data analysis
+
+Finally, we could try fitting some statistical models to investigate whether vowel realisations differ depending on the speaker's L1 background. 
+
+We could fit ordinary linear-mixed effect models for the midpoint measurement. 
+
+```{r message=FALSE, warning=FALSE}
+library(lme4)
+library(lmerTest)
+library(emmeans)
+
+# converting variables into factor and dropping empty levels
+df_long_mono$vowel <- droplevels(as.factor(df_long_mono$vowel)) 
+df_long_mono$vowel <- as.factor(df_long_mono$vowel)
+df_long_mono$speaker <- as.factor(df_long_mono$speaker)
+df_long_mono$L1 <- as.factor(df_long_mono$L1)
+
+# run model -- random intercepts for speaker made the model unable to converge so we just have random intercepts for item (i.e., word)
+m1 <- lme4::lmer(f2z ~ L1 + vowel + L1:vowel + (1|word), data = df_long_mono, REML = FALSE)
+
+## check what optimiser would let the model converge
+lme4::allFit(m1)
+
+## model summary
+summary(m1)
+
+# significance testing
+## nested model for the interaction
+m2 <- lme4::lmer(f2z ~ L1 + vowel + (1|word), data = df_long_mono, REML = FALSE)
+
+## model comparison: full model significantly improves the model fit
+anova(m1, m2, test = "Chisq")
+
+## post-hoc anlaysis
+emmeans::emmeans(m1, pairwise ~ L1 | vowel)
 ```
 
 
-<!--
-<p align="center">
-<img src="https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/images/asian_englishes_vowels.png" width = 100%>
-</p>
--->
+## Based on information from the ```csv``` folder
 
+Another way of spectral analysis would be to use FastTrack's initial sampling at every 2ms. This information is stored in the **csv** folder. 
 
-# Other interesting stuff
+### Data processing
 
-I have demonstrated the overview of my vowel analysis workflow, but these are only basic things. 
+Let's import all .csv files stored in the csv folder by running the loop below. Again, we'll import female and male data separately and merge them later.
 
-1. **Segmenting audio files into phonemes using** [**Montreal Forced
-    Aligner**](https://montreal-forced-aligner.readthedocs.io/en/latest/)
-    
-    - You need audio files and acoomanying Praat TextGrids that contain a
-    tier with phonemically segmented intervals and I find it useful to
-    use Montreal Forced Aligner (MFA) to prepare the files. Dr Eleanor Chodroff recently held a workshop on using MFA at Rutgers
-    University and the video can be found on Youtube [https://www.youtube.com/watch?v=Zhj-ccMDj_w](https://www.youtube.com/watch?v=Zhj-ccMDj_w). She also
-    develops a comprehensive user manual for
-    MFA which can be found at [https://eleanorchodroff.com/tutorial/montreal-forced-aligner-v2.html](https://eleanorchodroff.com/tutorial/montreal-forced-aligner-v2.html).
+**Female data**:
 
-2. **Formant correction**
+```{r message=FALSE, warning=FALSE}
+## loading data
+# index csv files in the directory
+file_list <- list.files("/Volumes/Samsung_T5/data/female/output/csvs", pattern = "*.csv", full.names = TRUE)
 
-    - At this stage, my analyses remain very coarse as it still takes me a lot of time checking if the segmenetation is correct before extracting vowels. However, you may want to check the accuracy of formant estimation and hand correct the measurement if necessary. I haven't managed to learn it just yet, but FastTrack has a capacity for this. You can learn about it in [How to analyze a folder](https://github.com/santiagobarreda/FastTrack/wiki/How-to-analyze-a-folder) and [Fixing errors](https://github.com/santiagobarreda/FastTrack/wiki/Fixing-Errors).
+# create an empty list to store data
+data_list <- list()
+
+for(i in seq_along(file_list)){
+  current_data <- read.csv(file_list[i], header = TRUE)
+  
+  # Add a new column with the filename
+  current_data$filename <- basename(file_list[i])
+  
+  data_list[[i]] <- current_data
+}
+
+# bind all data from the list into a data frame
+dat_f <- dplyr::bind_rows(data_list) |> 
+  dplyr::relocate(filename)
+
+# View the result
+head(dat_f)
+```
+
+**Male data**:
+
+```{r message=FALSE, warning=FALSE}
+## loading data
+# index csv files in the directory
+file_list <- list.files("/Volumes/Samsung_T5/data/male/output/csvs", pattern = "*.csv", full.names = TRUE)
+
+# create an empty list to store data
+data_list <- list()
+
+for(i in seq_along(file_list)){
+  current_data <- read.csv(file_list[i], header = TRUE)
+  
+  # Add a new column with the filename
+  current_data$filename <- basename(file_list[i])
+  
+  data_list[[i]] <- current_data
+}
+
+# bind all data from the list into a data frame
+dat_m <- dplyr::bind_rows(data_list) |> 
+  dplyr::relocate(filename)
+
+# View the result
+head(dat_m)
+```
+
+And let's add some relevant information.
+
+```{r message=FALSE, warning=FALSE}
+# merge female and male data
+dat <- rbind(dat_f, dat_m)
+
+# adding speaker, L1, gender etc from the file name
+dat <- dat |> 
+  dplyr::mutate(
+    speaker =
+      str_sub(filename, start = 5, end = 7), # speaker ID: three digits
+    speaker = as.factor(speaker),
+    gender = 
+      str_sub(filename, start = 9, end = 9), # gender: F or M
+    L1 =
+      str_sub(filename, start = 11, end = 13), # L1: CMN, CCT ...
+  )
+
+# adding proportional time
+dat <- dat |> 
+  dplyr::group_by(filename) |> 
+  dplyr::mutate(
+    duration = max(time) - min(time),
+    percent = (time - min(time)) / duration * 100 # make sure percent starts at 0 and ends at 100
+  ) |> 
+  dplyr::ungroup() |> 
+  dplyr::relocate(filename, time, percent)
+
+# within-speaker normalise formant
+dat <- dat |> 
+  dplyr::group_by(speaker) |> 
+  dplyr::mutate(
+    f1z = scale(f1),
+    f2z = scale(f2),
+    f3z = scale(f3)
+  ) |> 
+  dplyr::ungroup()
+```
+
+We also need to combine vowel information. This is where ```file_information.csv``` can be useful as it shows the correspondence between the filename and vowel.
+
+```{r message=FALSE, warning=FALSE}
+# import file_information.csv
+## female
+df_file_f <- readr::read_csv("/Volumes/Samsung_T5/data/female/output/file_information.csv")
+
+## male
+df_file_m <- readr::read_csv("/Volumes/Samsung_T5/data/male/output/file_information.csv")
+
+## merge
+df_file <- rbind(df_file_f, df_file_m)
+
+# create a common key to merge two data sets
+## omit the extention from the "filename" column from dat and call it "file"
+dat <- dat |> 
+  dplyr::mutate(
+    file = str_sub(filename, start = 1, end = -5)
+  ) |> 
+  dplyr::relocate(file)
+
+## same for df_file
+df_file <- df_file |> 
+  dplyr::mutate(
+    file = str_sub(file, start = 1, end = -5)
+  ) |> 
+  dplyr::relocate(file)
+
+# join df_file and dat with the "file" information
+dat <- dplyr::left_join(dat, df_file, by = "file") |> 
+  dplyr::rename(
+    vowel = label
+  )
+```
+
+### Data visualisation
+
+Compared to the dynamic visualisation based on the aggregate_data.csv, you can see that we now have much finer temporal resolution from the number of data points! Again, here is the time-varying changes in F2. 
+
+```{r fig.width=10, fig.height=10}
+dat |> 
+  dplyr::filter(
+    L1 %in% c("ENG", "JPN") # change for different L1 pairs
+    ) |> 
+  ggplot(aes(x = percent, y = f2z, colour = L1)) +
+  geom_point(alpha = 0.05) +
+  geom_path(aes(group = number), alpha = 0.05) +
+  geom_smooth(aes(group = L1)) + # you could also add smooths
+  geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+  labs(x = "proportional time", y = "normalised F2\n", title = "F2 dynamics") +
+  facet_wrap( ~ vowel) +
+  scale_colour_manual(values = alpha(c("brown4", "blue4"))) +
+  theme(axis.text = element_text(size = 10),
+        axis.title = element_text(size = 15),
+        strip.text.x = element_text(size = 15),
+        strip.text.y = element_text(size = 15, angle = 0),
+        plot.title = element_text(size = 20, hjust = 0, face = "bold")
+  )  
+```
+
+# Improving analysis
+
+## Manually correcting measurement errors
+
+We're now familiar with the overall workflow of acoustic analysis using FastTrack. Hooray! FastTrack is very efficient in analysing a large number of vowel tokens. In the data set above, we had a total of 1,964 tokens with the breakdown shown below:
+
+```{r}
+# total number of tokens
+dat |> 
+  dplyr::group_by(file, L1) |> 
+  dplyr::filter(
+    percent == "0" # to make sure we only count one data point per file
+  ) |> 
+  dplyr::ungroup() |> 
+  dplyr::count() 
+
+# by L1
+dat |> 
+  dplyr::group_by(file, L1) |> 
+  dplyr::filter(
+    percent == "0" # to make sure we only count one data point per file
+  ) |> 
+  dplyr::ungroup() |> 
+  dplyr::group_by(L1) |> 
+  dplyr::count() |> 
+  dplyr::ungroup()
+```
+
+However, it is also quite obvious that FastTrack is not free from errors. This is especially important for dynamic analysis, as we've found that there are some potential measurement errors. 
+
+FastTrack has a few ways to address tracking errors. First, it is possible to manually correct the formant tracking on Praat (but via FastTrack). I have personally never done this, but you can find more information about this [here](https://github.com/santiagobarreda/FastTrack/wiki/Editing-tracks)
+
+## Nominating different winners
+
+An alternative approach, which I usually do, is to check the tracking accuracy of the rest of the analyses and see whether there is any 'better' analysis. Among the output files, we briefly talked about the **images_comparison** folder, where visualisations are stored for all 24 (or any other specified number of) analysis steps. 
+In my experience (English /l/ and /r/), it is often the case that formant tracking was inaccurate when F3 is extremely low for /r/ and F2/F3 is high for a very clear /l/. Just eyeballing all the comparison images will help you evaluate the formant tracking accuracy fairly quickly (especially when you're a Mac user where you can just preview all the image files by pressing the space bar.)
+
+When you would like to nominate a different analysis as a winner, you can tell FastTrack to return the tracking results for the particular analysis. This can be done by modifying the **winners.csv** -- all you need to do is to simply type in and indicate which analysis is better. You can replace the tracking for all formants at once, or change the tracking of just one formant. Either way, don't forget to change the number in the **Edit** column from **0** to **1**.
+
+Once you have nominated a different winner by yourself, you need to run **Track folder** again. But this time, untick the **Track formants** and **Autoselect winners** boxes at the bottom, as you're simply telling FastTrack to use different analysis instead of tracking formants all over again. 
+
+# Session info
+
+```{r}
+sessionInfo()
+```
+
