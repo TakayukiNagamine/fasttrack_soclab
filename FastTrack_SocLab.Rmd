@@ -1,0 +1,276 @@
+---
+title: "Vowel analysis using FastTrack"
+author: "Takayuki Nagamine"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    toc: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+FastTrack is a (nearly) automated formant tracking tool that enables
+you to extract the formant contours quickly and easily. The tool
+functions based on a number of praat scripts and as a plug-in in Praat,
+so there is no need for you to code anything. There is also room for
+customising the scripts to make more individualised tool. FastTrack is
+developed by Santiago Barreda at UC Davies and more information can be
+found here: <https://github.com/santiagobarreda/FastTrack>
+
+Also, the following paper explains the tool in more detail:
+
+[Barreda, S. (2021). Fast Track: fast (nearly) automatic
+formant-tracking using Praat. Linguistics Vanguard, 7(1), 20200051.
+https://doi.org/10.1515/lingvan-2020-0051](https://www.degruyter.com/document/doi/10.1515/lingvan-2020-0051/html)
+
+## Workflow overview
+
+In the workshop, I will demonstrate my typical workflow of acoustic (spectral) analysis using FastTrack. I usually follow these steps:
+
+1. Record audio data (well, quite obvious)
+
+2. Annotate audio files onto Praat Textgrids
+  - I usually start this using forced alignment (e.g., Montreal Forced Aligner: MFA) and then refine segment boundaries manually. 
+  - I use MFA because it can annotate segments using ARPABET that FastTrack can recognise. 
+  - Helpful to create two tiers at least: word (orthography) and phone (ARPABET). You can manually annotate words first, and then MFA will create the phone tier for you. 
+
+3. Define segments of interest
+  - FastTrack starts to kick in here. By default, FastTrack looks for vowels as FastTrack is designed primarily for analysing vowels (or, to be more specific, vowel inherent spectral change: VICS). But the minimum requirement in using FastTrack is that formant structure is visible throughout each audio file to be analysed, and you can tweak the settings into analysing sonorant consonants (e.g., liquids, semi-vowels).
+
+4. Extract vowels (or vocalic portions of interest)
+  - FastTrack estimates formants throughout each audio file. This means that it achieves the highest formant estimation accuracy when spectral structure is seen throughout each file. 
+  - FastTrack has **Extract vowels** function that enables you to extract the vocalic portions of your interest before analysis. 
+
+5. Estimate formants using **Track Folder**
+  - Once individual segments have been extracted, you can bulk-estimate formant frequencies for all audio files stored in the same directory. 
+  - Some parameters need to be specified, such as the maximum and minumum frequency of anlaysis windows, the number of formants to be extracted (3 or 4), the number of data points (i.e., `bins') to be output etc. 
+
+6. Visualise and run stats using R
+  - This is the fun bit!
+
+## Workshop objectives
+
+In this workshop, I will mainly explain and demonstrate steps 3-5 from above. If you would like to follow along, you can install FastTrack beforehand. A detailed step-by-step guide is available in [Santiago’s Github repository](https://github.com/santiagobarreda/FastTrack) with some video illustrations. See the [wiki](https://github.com/santiagobarreda/FastTrack/wiki) on his Github repository for the tutorial on installation (and many other things!)
+
+```{r echo=FALSE, include=FALSE}
+library(knitr)
+library(tidyverse)
+library(emuR)
+```
+
+# Research problem
+
+Takayuki is generally interested in the mechanisms behind foreign accents in L2 speech production. One of the understudied aspects is the role of speech dynamics (i.e., the interaction between spatial and temporal characteristics of speech). Previous literature, for example, argues that L1 Japanese speakers can learn to use F2 dimension in a native-like manner in their production of L2 English liquids /l/ and /r/ based on single-point spectral measurement (e.g., at temporal midpoint of a segment). I have demonstrated, however, that this is rather a little misleading; formant dynamics show that L1 Japanese speakers' use of F2 is quite different from that of L1 English speakers in the production of English liquids. 
+
+Extending this, I would now like to extend this line of research into vowels. So, in this workshop, let's take a look together at dynamics involved in the production of vowels and compare vowel production between L1 Japanese and L1 English speakers. 
+
+## data
+
+We are going to analyse vowel production from ``the North Wind and the Sun'' passage. We will use the data from [the ALLSTAR
+Corpus](https://groups.linguistics.northwestern.edu/speech_comm_group/allsstar2/#!/). The ALLSTAR Corpus contains a number of spontaneous and scripted speech that were produced by English speakers from different language
+backgrounds:
+
+Bradlow, A. R. (n.d.) ALLSSTAR: Archive of L1 and L2 Scripted and
+Spontaneous Transcripts And Recordings. Retrieved from
+<https://oscaar3.ling.northwestern.edu/ALLSSTARcentral/#!/recordings>.
+
+You can download a subset of the corpus data (containing only L1 Japanese and L1 English speaker data) from below:
+
+- [**NWS.zip**](https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/zip/NWS.zip): 
+    - This is basically a folder that contains WAV and TextGrid files, but are stored in separate folders in a FastTrack-friendly manner. 
+    
+- [**NWS_individual_vowels.zip**](https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/zip/NWS_individual_vowels.zip): 
+    - The folder contains the product of the vowel extraction. Therefore, each sound file corresponds to a vowel and is stored in the `sounds' folder. There are also two csv files that are helpful for tidying up the data afterwards.
+
+# Let's begin the analysis!
+
+## Extracting vowels
+
+We have recorded speech data from participants and/or obtained corpus data already. After some agony, we have managed to segment everything and are now ready to proceed onto acoustic analysis. 
+
+When using FastTrack, the first thing we need to do is **to extract vocalic portions** that we would like to analyse. Let's extract vowels using FastTrack before submitting them to formant estimation. 
+
+Here is a somewhat detailed workflow:
+
+1. Download [**NWS.zip**](https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/zip/NWS.zip) and save it somewhere on your computer. I have already made the structure optimal for the vowel extraction. 
+
+2. Open **Praat** and throw a random file in the object window. This will trigger the FastTrack functions to appear in the menu section.
+
+3. Select **Tools...**, then **Extract vowels with TextGrids**.
+
+4. Specify the following:
+
+- **Sound folder**: 
+  - Path to "sounds" in the NWS folder containing .wav files.
+- **TextGrid folder**: 
+  - Path to "textgrids" in the NWS folder containing .TextGrid files.
+- **Output folder**: 
+  - Path to the folder where you wish to save the outputs. You could specify an existing location. 
+- **Which tier contains segmentation information?**: 
+  - Specify the tier in which phonemic transcription/segmentation has been performed. In the current example, the segmentation is done in Tier 2 so type 2.
+- **Which tier contains word information?**: 
+  - Specify the tier with words. Type 1 in this case.
+- **Is stress marked on vowels?**: 
+  - Tick the box if you wish to take stress into account. If you use forced alignment to segment the speech, stress is marked alongside each vowel. For example, you will find "AE1", which means a TRAP vowel that bears the primary stress, or "AE2" the secondary stress, etc.
+
+```{r echo=FALSE, fig.align='center', out.width="50%", fig.cap="Vowel extraction setting window"}
+
+knitr::include_graphics("/Users/TakayukiNagamine/Documents/GitHub/FastTrack-Workshop/images/vowel_extraction.png")
+```
+
+
+<!--
+
+<p align="center">
+<img src="https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/c3015ff5f06a6ba7d353981eadcece64e3f85706/images/vowel_extraction.png" width = 80%>
+</p>
+
+-->
+
+# Bulk formant estimation
+
+Let's imagine that you are interested in comparing vowel realisations between a native English speaker and a native Japanese learner of English. 
+
+The highlight of using FastTrack is that it enables you to extract formant frequencies from multiple files automatically. So, skipping all the preparation, here are what you can expect from FastTrack:
+
+- FastTrack does a lot of regressions and chooses the best analysis out of multiple candidates automatically. It can also return images of all candidates and the winners for visual inspection. 
+
+- It estimates the formant frequencies at the multiple time points throughout the vowel duration.
+
+- The output is a csv file summarising the analysis, which can then be imported into R for tidy up, visualisation, statistics, etc. 
+
+You can extract formant contours easily through the following steps:
+
+1. Download [**NWS_individual_vowels.zip**](https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/zip/NWS_individual_vowels.zip), unfold it and save it somewhere on your computer.
+
+2. Open **Praat** and throw a random file in the object window. This will trigger the FastTrack functions to appear in the menu section (if FastTrack is installed properly).
+
+3. Select **Track folder...**.
+
+4. Specify the path to the **NWS_individual_vowels** folder in the "Folder" section. You can also adjust some other functions if prefer. For more details, please consult Sandiego's Github page.
+
+- Note that the path to be specified here is **the folder that contains a 'sound' folder and two other csv files**. This won't work if you specify the 'sound' folder directly. 
+    
+- Also note that **the naming convention is also important** in later stages - i.e. a 'sounds' folder and a 'texrgrids' folder.
+
+
+```{r echo=FALSE, out.width="49%", out.height="20%", fig.show='hold', fig.align='center', fig.cap='Setting window for formant estimation (left) and an example of comparison image (right)'}
+
+
+knitr::include_graphics("/Users/TakayukiNagamine/Documents/GitHub/FastTrack-Workshop/images/trackfolder01.png")
+
+knitr::include_graphics("/Users/TakayukiNagamine/Documents/GitHub/FastTrack-Workshop/images/071_F_ENG_0025_comparison.png")
+
+  
+```
+
+<!--
+<p align="center">
+<img src="https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/baefed6e4a16e2d3b4d24cc280743bee8c3f4dfe/images/trackfolder01.png" width = 80%>
+</p>
+
+<p align="center">
+<img src="https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/6a5ab4e82ad7ef17021eb3fa7fbfae4262c8bc7d/images/071_F_ENG_0025_comparison.png" width = 80%>
+</p>
+-->
+
+This operation yields quite a few output files, for which we don't have enough time to look through. If interested, you can download [**"NWS_results.zip"**](https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/zip/NWS_result.zip) to see the full output. The most important here is the results of the formant estimation, stored in a csv file as [**aggregate_data.csv**](https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/cea3b7c72cd9794705aec754d362449e2f93ab66/csv/aggregated_data.csv) in **processed_data** folder. Here is a glimpse of it: 
+
+```{r echo=FALSE, fig.align='center', fig.cap="An example of Aggregate_data.csv"}
+
+knitr::include_graphics("/Users/TakayukiNagamine/Documents/GitHub/FastTrack-Workshop/images/aggregate_data.png")
+
+```
+
+<!--
+<p align="center">
+<img src="https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/51f898dc45415f4d5f22719334d37dc2e7d62cb1/images/aggregate_data.png" width = 100%>
+</p>
+-->
+
+# Tidying up data for R
+
+I think FastTrack becomes even more powerful if combined with R. This, however, requires you to figure out how to tidy up the data for a more R-friendly data frame. If interested, you can look at my R code ([**FastTrack.R**](https://github.com/TakayukiNagamine/FastTrack-Workshop/blob/main/FastTrack.R)) to tidy up the data, which I wrote based on Sam's script.
+
+Below is my attempt to visualise vowels of nonnative English speakers from the Asian countries (Hong Kong, Thailand and Vietnam) as well as an American English speaker. 
+
+```{r message=FALSE, echo=FALSE, fig.align='center', fig.cap="Comparison of vowel space in Asian Englishes speakers and an American English speaker"}
+
+df.long <- read_csv("/Volumes/Samsung_T5/Asian_Engliehse_Listening/FastTrack/tidydata.csv")
+
+df.midpoint.mono <- df.long %>% 
+  filter(stress %in% c(1, 2), # each instance occurs in a stressed position
+         !next_sound %in% c("R", "W", "Y"), # monophthongs followed by /r/, /w/, and /j/ were avoided
+         !previous_sound %in% c("R", "W", "Y"), # monophthongs preceded by /r/, /w/, and /j/ were avoided
+         !next_sound %in% c("L", "NG"), # monophthongs followed by /l/ and /ng/ were avoided
+         percent == 50, # specifying vowel midpoint
+         !(vowel %in% c("AW", "AY", "EY", "OW", "OY")) # monophthongs
+  ) %>% 
+  mutate(
+    vowel_ipa =
+      case_when(
+        str_detect(vowel, "AA") ~ "ɑ",
+        str_detect(vowel, "AE") ~ "æ",
+        str_detect(vowel, "AH") ~ "ʌ",
+        str_detect(vowel, "AO") ~ "ɔ",
+        str_detect(vowel, "EH") ~ "ɛ",
+        str_detect(vowel, "ER") ~ "ɝ",
+        str_detect(vowel, "IH") ~ "ɪ",
+        str_detect(vowel, "IY") ~ "i",
+        str_detect(vowel, "UH") ~ "ʊ",
+        str_detect(vowel, "UW") ~ "u",
+        )
+    )
+ 
+
+# Calculate vowel means
+df.means <- df.midpoint.mono %>% 
+  group_by(speaker, vowel, vowel_ipa) %>% 
+  filter(speaker %in% c("AME_F", "HKG_F", "THA_F", "VIE_F")) %>% 
+  summarise(
+    F1 = mean(Barkf1),
+    F2 = mean(Barkf2)
+  )
+
+df.midpoint.mono %>% 
+  filter(speaker %in% c("AME_F", "HKG_F", "THA_F", "VIE_F")) %>% 
+  ggplot(aes(x = Barkf2, y = Barkf1, colour = vowel), show.legend = FALSE) +
+  geom_point(size = 1, alpha = 0.5, show.legend = FALSE) +
+#  stat_ellipse(geom = "polygon", alpha = 0.25, aes(fill = vowel_ipa), show.legend = FALSE) +
+  scale_x_reverse(position = "top") +
+  scale_y_reverse(position = "right") +
+  facet_wrap( ~ speaker) +
+  geom_label(data = df.means, aes(x = F2, y= F1, label = vowel, colour = vowel), show.legend = FALSE)
+
+```
+
+
+<!--
+<p align="center">
+<img src="https://github.com/TakayukiNagamine/FastTrack-Workshop/raw/main/images/asian_englishes_vowels.png" width = 100%>
+</p>
+-->
+
+
+# Other interesting stuff
+
+I have demonstrated the overview of my vowel analysis workflow, but these are only basic things. 
+
+1. **Segmenting audio files into phonemes using** [**Montreal Forced
+    Aligner**](https://montreal-forced-aligner.readthedocs.io/en/latest/)
+    
+    - You need audio files and acoomanying Praat TextGrids that contain a
+    tier with phonemically segmented intervals and I find it useful to
+    use Montreal Forced Aligner (MFA) to prepare the files. Dr Eleanor Chodroff recently held a workshop on using MFA at Rutgers
+    University and the video can be found on Youtube [https://www.youtube.com/watch?v=Zhj-ccMDj_w](https://www.youtube.com/watch?v=Zhj-ccMDj_w). She also
+    develops a comprehensive user manual for
+    MFA which can be found at [https://eleanorchodroff.com/tutorial/montreal-forced-aligner-v2.html](https://eleanorchodroff.com/tutorial/montreal-forced-aligner-v2.html).
+
+2. **Formant correction**
+
+    - At this stage, my analyses remain very coarse as it still takes me a lot of time checking if the segmenetation is correct before extracting vowels. However, you may want to check the accuracy of formant estimation and hand correct the measurement if necessary. I haven't managed to learn it just yet, but FastTrack has a capacity for this. You can learn about it in [How to analyze a folder](https://github.com/santiagobarreda/FastTrack/wiki/How-to-analyze-a-folder) and [Fixing errors](https://github.com/santiagobarreda/FastTrack/wiki/Fixing-Errors).
