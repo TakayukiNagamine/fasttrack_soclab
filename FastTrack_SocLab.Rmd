@@ -43,7 +43,7 @@ In the workshop, I will demonstrate my typical workflow of acoustic (spectral) a
   - Helpful to create two tiers at least: word (orthography) and phone (ARPABET). You can manually annotate words first, and then MFA will create the phone tier for you. 
 
 3. **Define segments of interest**
-  - FastTrack starts to kick in here. By default, FastTrack looks for vowels as FastTrack is designed primarily for analysing vowels (or, to be more specific, vowel inherent spectral change: VICS). But the minimum requirement in using FastTrack is that formant structure is visible throughout each audio file to be analysed, and you can tweak the settings into analysing sonorant consonants (e.g., liquids, semi-vowels).
+  - FastTrack starts to kick in here. By default, FastTrack looks for vowels as FastTrack is designed primarily for analysing vowels (or, to be more specific, vowel inherent spectral change: VISC). But the minimum requirement in using FastTrack is that formant structure is visible throughout each audio file to be analysed, and you can tweak the settings into analysing sonorant consonants (e.g., liquids, semi-vowels).
 
 4. **Extract vowels (or vocalic portions of interest)**
   - FastTrack estimates formants throughout each audio file. This means that it achieves the highest formant estimation accuracy when spectral structure is seen throughout each file. 
