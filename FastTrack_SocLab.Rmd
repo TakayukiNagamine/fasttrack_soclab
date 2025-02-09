@@ -66,7 +66,7 @@ library(tidyverse)
 library(emuR)
 ```
 
-## data
+## Data
 
 We are going to analyse vowel production from ``the North Wind and the Sun'' passage produced by speakers of different L1 backgrounds. We will use the data from [the ALLSTAR
 Corpus](https://groups.linguistics.northwestern.edu/speech_comm_group/allsstar2/#!/). The ALLSTAR Corpus contains a number of spontaneous and scripted speech that were produced by English speakers from different language
@@ -360,12 +360,22 @@ We need mean formant values where we'll put the IPA labels.
 ```{r fig.width=10, fig.height=6}
 # Calculate vowel means
 df_mean <- df_long_mono |> 
-  dplyr::group_by(gender, vowel, vowel_ipa) |> 
+  dplyr::group_by(gender, L1, vowel, vowel_ipa) |> 
   dplyr::summarise(
     m_f1 = mean(f1z),
     m_f2 = mean(f2z)
   ) |> 
-  dplyr::ungroup()
+  dplyr::ungroup() |> 
+  dplyr::mutate(
+    L1 = case_when(
+      L1 == "CCT" ~ "Cantonese",
+      L1 == "CMN" ~ "Mandarin",
+      L1 == "ENG" ~ "English",
+      L1 == "KOR" ~ "Korean",
+      L1 == "JPN" ~ "Japanese",
+      L1 == "SPA" ~ "Spanish",
+    ) # making L1 labels to be more readable
+  ) 
 
 # plot
 df_long_mono |> 
